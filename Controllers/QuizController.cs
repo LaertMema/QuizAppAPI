@@ -34,7 +34,7 @@ namespace Quiz_App_API.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        //[Authorize] Po i heq ngaqe skemi role :/
         public async Task<ActionResult<QuizResponse>> CreateQuiz(CreateQuizRequestDTO request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -43,7 +43,7 @@ namespace Quiz_App_API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize]
+        //[Authorize]
         public async Task<ActionResult<QuizResponse>> UpdateQuiz(int id, UpdateQuizRequestDTO request)
         {
             var quiz = await _quizService.UpdateQuizAsync(id, request);
@@ -52,7 +52,7 @@ namespace Quiz_App_API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize]
+        //[Authorize]
         public async Task<ActionResult> DeleteQuiz(int id)
         {
             var result = await _quizService.DeleteQuizAsync(id);
@@ -68,7 +68,7 @@ namespace Quiz_App_API.Controllers
         }
 
         [HttpGet("my-quizzes")]
-        [Authorize]
+        //[Authorize]
         public async Task<ActionResult<List<QuizSummaryResponse>>> GetMyQuizzes()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

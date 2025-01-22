@@ -4,6 +4,8 @@ using Quiz_App_API.Data.Services;
 using static Quiz_App_API.Data.DTOs.Request.QuizAttemptRequests;
 using static Quiz_App_API.Data.DTOs.Response.QuizAttemptResponses;
 using System.Security.Claims;
+using static Quiz_App_API.Data.DTOs.Response.StatisticsResponses;
+using Quiz_App_API.Data.DTOs.Response;
 
 namespace Quiz_App_API.Controllers
 {
@@ -48,7 +50,7 @@ namespace Quiz_App_API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-
+        
         [HttpGet("{id}")]
         public async Task<ActionResult<QuizAttemptResponse>> GetAttempt(int id)
         {
@@ -63,6 +65,47 @@ namespace Quiz_App_API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var attempts = await _quizAttemptService.GetUserAttemptsAsync(userId);
             return Ok(attempts);
+        }
+        [HttpGet("user-statistics")]
+        public async Task<ActionResult<UserStatisticsResponse>> GetUserStatistics()
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var statistics = await _quizAttemptService.GetUserStatisticsAsync(userId);
+                return Ok(statistics);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("quiz-statistics/{quizId}")]
+        public async Task<ActionResult<QuizStatisticsResponse>> GetQuizStatistics(int quizId)
+        {
+            try
+            {
+                var statistics = await _quizAttemptService.GetQuizStatisticsAsync(quizId);
+                return Ok(statistics);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+        [HttpGet("leaderboard/{subjectId}")]
+        public async Task<ActionResult<List<LeaderboardEntryResponse>>> GetLeaderboard(int subjectId)
+        {
+            try
+            {
+                var leaderboard = await _quizAttemptService.GetLeaderboardBySubjectAsync(subjectId);
+                return Ok(leaderboard);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

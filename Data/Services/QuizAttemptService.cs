@@ -1,7 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Quiz_App_API.Data.DTOs.Response;
 using Quiz_App_API.Data.Models;
 using static Quiz_App_API.Data.DTOs.Request.QuizAttemptRequests;
 using static Quiz_App_API.Data.DTOs.Response.QuizAttemptResponses;
+using static Quiz_App_API.Data.DTOs.Response.StatisticsResponses;
 
 namespace Quiz_App_API.Data.Services
 {
@@ -153,6 +155,87 @@ namespace Quiz_App_API.Data.Services
 
             var totalQuestions = attempt.Quiz.Questions.Count;
             return (int)Math.Round((double)correctAnswers / totalQuestions * 100);
+        }
+
+        //The below methods are for leaderboard
+        public async Task<UserStatisticsResponse> GetUserStatisticsAsync(string userId)
+        {
+            var attempts = await _context.QuizAttempts
+                .Where(qa => qa.UserId == userId && qa.CompletedAt.HasValue)
+                .Include(qa => qa.Quiz)
+                .ToListAsync();
+
+            var createdQuizzes = await _context.Quizzes
+                .CountAsync(q => q.CreatorId == userId);
+
+            var recentAttempts = attempts
+                .OrderByDescending(a => a.CompletedAt)
+                .Take(5)
+                .Select(a => new QuizAttemptSummaryResponse
+                {
+                    Id = a.Id,
+                    QuizTitle = a.Quiz.Title,
+                    CompletedAt = a.CompletedAt.Value,
+                    Score = a.Score,
+                    TotalQuestions = a.Quiz.Questions.Count
+                })
+                .ToList();
+
+            return new UserStatisticsResponse
+            {
+                TotalQuizzesTaken = attempts.Count,
+                TotalQuizzesCreated = createdQuizzes,
+                AverageScore = attempts.Any() ? Math.Round(attempts.Average(a => a.Score), 2) : 0,
+                RecentAttempts = recentAttempts
+            };
+        }
+
+        public async Task<QuizStatisticsResponse> GetQuizStatisticsAsync(int quizId)
+        {
+            var attempts = await _context.QuizAttempts
+                .Where(qa => qa.QuizId == quizId && qa.CompletedAt.HasValue)
+                .Include(qa => qa.Quiz)
+                .ToListAsync();
+
+            var topScores = attempts
+                .OrderByDescending(a => a.Score)
+                .Take(5)
+                .Select(a => new QuizAttemptSummaryResponse
+                {
+                    Id = a.Id,
+                    QuizTitle = a.Quiz.Title,
+                    CompletedAt = a.CompletedAt.Value,
+                    Score = a.Score,
+                    TotalQuestions = a.Quiz.Questions.Count
+                })
+                .ToList();
+
+            return new QuizStatisticsResponse
+            {
+                TotalAttempts = attempts.Count,
+                AverageScore = attempts.Any() ? Math.Round(attempts.Average(a => a.Score), 2) : 0,
+                HighestScore = attempts.Any() ? attempts.Max(a => a.Score) : 0,
+                LowestScore = attempts.Any() ? attempts.Min(a => a.Score) : 0,
+                TopScores = topScores
+            };
+        }
+        public async Task<List<LeaderboardEntryResponse>> GetLeaderboardBySubjectAsync(int subjectId)
+        {
+            return await _context.QuizAttempts
+                .Where(qa => qa.Quiz.SubjectId == subjectId && qa.CompletedAt.HasValue)
+                .GroupBy(qa => qa.UserId)
+                .Select(g => new LeaderboardEntryResponse
+                {
+                    UserName = _context.Users
+                        .Where(u => u.Id == g.Key)
+                        .Select(u => u.UserName)
+                        .FirstOrDefault(),
+                    QuizzesTaken = g.Count(),
+                    TotalScore = g.Sum(qa => qa.Score) * g.Count() // Score × number of quizzes
+                })
+                .OrderByDescending(l => l.TotalScore)
+                .Take(10)  // Get top 10 users
+                .ToListAsync();
         }
     }
 }

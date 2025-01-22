@@ -103,8 +103,58 @@ namespace Quiz_App_API.Data.Services
             return await GetQuizByIdAsync(quiz.Id);
         }
 
+        //public async Task<QuizResponse> UpdateQuizAsync(int id, UpdateQuizRequestDTO request)
+        //{
+        //    var quiz = await _context.Quizzes
+        //        .Include(q => q.Questions)
+        //            .ThenInclude(q => q.Alternatives)
+        //        .FirstOrDefaultAsync(q => q.Id == id);
+
+        //    if (quiz == null) return null;
+
+        //    quiz.Title = request.Title;
+        //    quiz.Description = request.Description;
+        //    quiz.SubjectId = request.SubjectId;
+
+        //    // Remove existing questions and options
+        //    _context.Alternatives.RemoveRange(quiz.Questions.SelectMany(q => q.Alternatives));
+        //    _context.Questions.RemoveRange(quiz.Questions);
+
+        //    // Add new questions and options
+        //    quiz.Questions = request.Questions.Select(q => new Question
+        //    {
+        //        Text = q.Text,
+        //        Alternatives = q.Alternatives.Select(o => new Alternative
+        //        {
+        //            Text = o.Text,
+        //            IsCorrect = o.IsCorrect
+        //        }).ToList()
+        //    }).ToList();
+
+        //    await _context.SaveChangesAsync();
+
+        //    return await GetQuizByIdAsync(quiz.Id);
+        //}
+
+        //public async Task<bool> DeleteQuizAsync(int id)
+        //{
+        //    var quiz = await _context.Quizzes.FindAsync(id);
+        //    if (quiz == null) return false;
+
+        //    _context.Quizzes.Remove(quiz);
+        //    await _context.SaveChangesAsync();
+        //    return true;
+        //}
+        //E sakta
         public async Task<QuizResponse> UpdateQuizAsync(int id, UpdateQuizRequestDTO request)
         {
+            // First verify the subject exists
+            var subjectExists = await _context.Subjects.AnyAsync(s => s.Id == request.SubjectId);
+            if (!subjectExists)
+            {
+                throw new InvalidOperationException("Subject not found");
+            }
+
             var quiz = await _context.Quizzes
                 .Include(q => q.Questions)
                     .ThenInclude(q => q.Alternatives)
@@ -112,40 +162,95 @@ namespace Quiz_App_API.Data.Services
 
             if (quiz == null) return null;
 
-            quiz.Title = request.Title;
-            quiz.Description = request.Description;
-            quiz.SubjectId = request.SubjectId;
-
-            // Remove existing questions and options
-            _context.Alternatives.RemoveRange(quiz.Questions.SelectMany(q => q.Alternatives));
-            _context.Questions.RemoveRange(quiz.Questions);
-
-            // Add new questions and options
-            quiz.Questions = request.Questions.Select(q => new Question
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                Text = q.Text,
-                Alternatives = q.Alternatives.Select(o => new Alternative
+                // Update basic quiz properties
+                quiz.Title = request.Title;
+                quiz.Description = request.Description;
+                quiz.SubjectId = request.SubjectId;
+
+                // Get all question IDs that will be deleted
+                var questionIds = quiz.Questions.Select(q => q.Id).ToList();
+
+                // First remove UserAnswers for these questions
+                var userAnswersToDelete = await _context.UserAnswers
+                    .Where(ua => questionIds.Contains(ua.QuestionId))
+                    .ToListAsync();
+                _context.UserAnswers.RemoveRange(userAnswersToDelete);
+
+                // Then remove alternatives and questions
+                foreach (var question in quiz.Questions)
                 {
-                    Text = o.Text,
-                    IsCorrect = o.IsCorrect
-                }).ToList()
-            }).ToList();
+                    _context.Alternatives.RemoveRange(question.Alternatives);
+                }
+                _context.Questions.RemoveRange(quiz.Questions);
 
-            await _context.SaveChangesAsync();
+                // Add new questions and alternatives
+                quiz.Questions = request.Questions.Select(q => new Question
+                {
+                    Text = q.Text,
+                    QuizId = quiz.Id,
+                    Alternatives = q.Alternatives.Select(a => new Alternative
+                    {
+                        Text = a.Text,
+                        IsCorrect = a.IsCorrect
+                    }).ToList()
+                }).ToList();
 
-            return await GetQuizByIdAsync(quiz.Id);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return await GetQuizByIdAsync(quiz.Id);
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<bool> DeleteQuizAsync(int id)
         {
-            var quiz = await _context.Quizzes.FindAsync(id);
-            if (quiz == null) return false;
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var quiz = await _context.Quizzes
+                    .Include(q => q.Questions)
+                        .ThenInclude(q => q.Alternatives)
+                    .Include(q => q.Attempts)
+                        .ThenInclude(a => a.Answers)
+                    .FirstOrDefaultAsync(q => q.Id == id);
 
-            _context.Quizzes.Remove(quiz);
-            await _context.SaveChangesAsync();
-            return true;
+                if (quiz == null) return false;
+
+                // Remove all related quiz attempts and answers
+                foreach (var attempt in quiz.Attempts)
+                {
+                    _context.UserAnswers.RemoveRange(attempt.Answers);
+                }
+                _context.QuizAttempts.RemoveRange(quiz.Attempts);
+
+                // Remove all questions and their alternatives
+                foreach (var question in quiz.Questions)
+                {
+                    _context.Alternatives.RemoveRange(question.Alternatives);
+                }
+                _context.Questions.RemoveRange(quiz.Questions);
+
+                // Finally remove the quiz
+                _context.Quizzes.Remove(quiz);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-
         public async Task<List<QuizSummaryResponse>> GetQuizzesBySubjectAsync(int subjectId)
         {
             return await _context.Quizzes

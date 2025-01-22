@@ -192,6 +192,32 @@
   },
   {
     "ContainingType": "Quiz_App_API.Controllers.QuizAttemptController",
+    "Method": "GetLeaderboard",
+    "RelativePath": "api/QuizAttempt/leaderboard/{subjectId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "subjectId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.List\u00601[[Quiz_App_API.Data.DTOs.Response.LeaderboardEntryResponse, Quiz-App-API, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "Quiz_App_API.Controllers.QuizAttemptController",
     "Method": "GetMyAttempts",
     "RelativePath": "api/QuizAttempt/my-attempts",
     "HttpMethod": "GET",
@@ -201,6 +227,32 @@
     "ReturnTypes": [
       {
         "Type": "System.Collections.Generic.List\u00601[[Quiz_App_API.Data.DTOs.Response.QuizAttemptResponses\u002BQuizAttemptSummaryResponse, Quiz-App-API, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "Quiz_App_API.Controllers.QuizAttemptController",
+    "Method": "GetQuizStatistics",
+    "RelativePath": "api/QuizAttempt/quiz-statistics/{quizId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "quizId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "Quiz_App_API.Data.DTOs.Response.StatisticsResponses\u002BQuizStatisticsResponse",
         "MediaTypes": [
           "text/plain",
           "application/json",
@@ -253,6 +305,26 @@
     "ReturnTypes": [
       {
         "Type": "Quiz_App_API.Data.DTOs.Response.QuizAttemptResponses\u002BQuizAttemptResponse",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "Quiz_App_API.Controllers.QuizAttemptController",
+    "Method": "GetUserStatistics",
+    "RelativePath": "api/QuizAttempt/user-statistics",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "Quiz_App_API.Data.DTOs.Response.StatisticsResponses\u002BUserStatisticsResponse",
         "MediaTypes": [
           "text/plain",
           "application/json",

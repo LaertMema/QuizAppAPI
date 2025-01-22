@@ -4,8 +4,7 @@ namespace Quiz_App_API.Data.DTOs.Request
 {
     public class UpdateQuizRequestDTO
     {
-        
-    [Required]
+        [Required]
         public string Title { get; set; }
 
         [Required]

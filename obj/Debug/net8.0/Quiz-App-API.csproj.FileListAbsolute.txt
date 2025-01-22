@@ -171,3 +171,4 @@ C:\Users\User\source\repos\Quiz-App-API\Quiz-App-API\obj\Debug\net8.0\refint\Qui
 C:\Users\User\source\repos\Quiz-App-API\Quiz-App-API\obj\Debug\net8.0\Quiz-App-API.pdb
 C:\Users\User\source\repos\Quiz-App-API\Quiz-App-API\obj\Debug\net8.0\Quiz-App-API.genruntimeconfig.cache
 C:\Users\User\source\repos\Quiz-App-API\Quiz-App-API\obj\Debug\net8.0\ref\Quiz-App-API.dll
+C:\Users\User\source\repos\Quiz-App-API\Quiz-App-API\obj\Debug\net8.0\Quiz-App-API.sourcelink.json
