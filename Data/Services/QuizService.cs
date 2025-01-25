@@ -71,7 +71,8 @@ namespace Quiz_App_API.Data.Services
                     Options = q.Alternatives.Select(o => new AlternativeResponse
                     {
                         Id = o.Id,
-                        Text = o.Text
+                        Text = o.Text,
+                        IsCorrect= o.IsCorrect
                     }).ToList()
                 }).ToList()
             };
@@ -204,8 +205,8 @@ namespace Quiz_App_API.Data.Services
                 return await GetQuizByIdAsync(quiz.Id);
             }
             catch (Exception)
-            {
-                await transaction.RollbackAsync();
+            {  //Koment per grupin
+                await transaction.RollbackAsync(); //Po deshtoi e kthen ne gjendje te meparshme
                 throw;
             }
         }

@@ -26,7 +26,7 @@ namespace Quiz_App_API.Data.Services
 
             var attempt = new QuizAttempt
             {
-                QuizId = request.QuizId,
+                QuizId = request.QuizId, //Mappers perdoren ketu psh qe te mos rrish vete ti besh set
                 UserId = userId,
                 StartedAt = DateTime.UtcNow
             };
@@ -57,31 +57,30 @@ namespace Quiz_App_API.Data.Services
             if (attempt == null) throw new Exception("Quiz attempt not found");
             if (attempt.CompletedAt.HasValue) throw new Exception("Quiz attempt already submitted");
 
+            // Debug log
+            Console.WriteLine($"Processing submission for attempt ID: {attempt.Id}");
+            Console.WriteLine($"Number of answers being submitted: {request.Answers.Count}");
+
             // Process answers
-            var answers = new List<UserAnswer>();
             foreach (var answerRequest in request.Answers)
             {
-                var question = attempt.Quiz.Questions.FirstOrDefault(q => q.Id == answerRequest.QuestionId);
-                if (question == null) continue;
-
-                var selectedOption = question.Alternatives.FirstOrDefault(o => o.Id == answerRequest.SelectedOptionId);
-                if (selectedOption == null) continue;
-
-                var answer = new UserAnswer
+                var userAnswer = new UserAnswer
                 {
                     QuizAttemptId = attempt.Id,
-                    QuestionId = question.Id,
-                    SelectedOptionId = selectedOption.Id,
-                    Question = question
+                    QuestionId = answerRequest.QuestionId,
+                    SelectedOptionId = answerRequest.SelectedOptionId
                 };
-                answers.Add(answer);
+
+                _context.UserAnswers.Add(userAnswer);
             }
 
-            _context.UserAnswers.AddRange(answers);
-            attempt.Answers = answers;
             attempt.CompletedAt = DateTime.UtcNow;
-            attempt.Score = await CalculateScore(attempt);
 
+            // Save changes before calculating score
+            await _context.SaveChangesAsync();
+
+            // Now calculate score after answers are saved
+            attempt.Score = await CalculateScore(attempt);
             await _context.SaveChangesAsync();
 
             return await GetAttemptByIdAsync(attempt.Id);
@@ -127,7 +126,7 @@ namespace Quiz_App_API.Data.Services
 
         private async Task<List<AttemptAnswerResponse>> GetAttemptAnswersAsync(int attemptId)
         {
-            return await _context.UserAnswers
+            return await _context.UserAnswers  //Merr answers convert  to Responses
                 .Where(aa => aa.QuizAttemptId == attemptId)
                 .Include(aa => aa.Question)
                     .ThenInclude(q => q.Alternatives)
@@ -146,17 +145,46 @@ namespace Quiz_App_API.Data.Services
 
         private async Task<int> CalculateScore(QuizAttempt attempt)
         {
-            var correctAnswers = await _context.UserAnswers
-                .Where(aa => aa.QuizAttemptId == attempt.Id)
-                .Include(aa => aa.Question)
+            // Get total questions count directly from database
+            var totalQuestions = await _context.Questions
+                .Where(q => q.QuizId == attempt.QuizId)
+                .CountAsync();
+
+            if (totalQuestions == 0)
+            {
+                return 0;
+            }
+
+            // Get user answers with their correctness
+            var userAnswers = await _context.UserAnswers
+                .Where(ua => ua.QuizAttemptId == attempt.Id)
+                .Include(ua => ua.Question)
                     .ThenInclude(q => q.Alternatives)
-                .CountAsync(aa => aa.Question.Alternatives
-                    .First(o => o.Id == aa.SelectedOptionId).IsCorrect);
+                .ToListAsync();
 
-            var totalQuestions = attempt.Quiz.Questions.Count;
-            return (int)Math.Round((double)correctAnswers / totalQuestions * 100);
+            var correctAnswers = userAnswers.Count(answer =>
+                answer.Question.Alternatives
+                    .Any(alt => alt.Id == answer.SelectedOptionId && alt.IsCorrect));
+
+            var score = (int)Math.Round((double)correctAnswers / totalQuestions * 100);
+
+            // For debugging
+            var debugInfo = new
+            {
+                AttemptId = attempt.Id,
+                QuizId = attempt.QuizId,
+                TotalQuestions = totalQuestions,
+                UserAnswersCount = userAnswers.Count,
+                CorrectAnswers = correctAnswers,
+                FinalScore = score
+            };
+
+            // Log the debug info
+            var debugJson = System.Text.Json.JsonSerializer.Serialize(debugInfo);
+            System.Diagnostics.Debug.WriteLine($"Score Calculation Debug: {debugJson}");
+
+            return score;
         }
-
         //The below methods are for leaderboard
         public async Task<UserStatisticsResponse> GetUserStatisticsAsync(string userId)
         {
@@ -231,10 +259,12 @@ namespace Quiz_App_API.Data.Services
                         .Select(u => u.UserName)
                         .FirstOrDefault(),
                     QuizzesTaken = g.Count(),
-                    TotalScore = g.Sum(qa => qa.Score) * g.Count() // Score × number of quizzes
+                    TotalScore = g.Sum(qa => qa.Score + (qa.Score >= 90 ? 50 :
+                                                        qa.Score >= 80 ? 30 :
+                                                        qa.Score >= 70 ? 20 : 0))
                 })
                 .OrderByDescending(l => l.TotalScore)
-                .Take(10)  // Get top 10 users
+                .Take(10)
                 .ToListAsync();
         }
     }
